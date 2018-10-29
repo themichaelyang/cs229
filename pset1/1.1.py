@@ -39,7 +39,7 @@ print(theta)
 # \end{aligned}
 # $$
 
-# In[247]:
+# In[259]:
 
 
 def sigmoid(z):
@@ -62,16 +62,21 @@ def hessian(theta, X, y):
     D = np.diag(prod) # construct diagonal matrix of sigmoid products
     return -X.T @ D @ X # error: was missing the - sign!! spent so long on this
 
-# for y = {-1, 1}
+# this cost only works for for y = {-1, 1}
 # def cost(theta, X, y):
 #     m = X.shape[0]
 #     return np.sum(np.log(1 + np.exp( (-y - (X @ theta) ))) / m
 
-# def log_likelihood(theta, X, y):
+def likelihood(theta, X, y):
+    class_1 = y @ np.log(hypothesis(theta, X))
+    class_0 = (1 - y) @ np.log(1 - hypothesis(theta, X))
+    
+    return np.sum(class_1 + class_0)
+    
     
 
 
-# In[248]:
+# In[269]:
 
 
 print(partials(theta, X, y))
@@ -79,28 +84,25 @@ print(hessian(theta, X, y))
 print(hypothesis(theta, X))
 
 
-# In[249]:
+# In[272]:
 
 
-def newton(theta, X, y, threshold = 0, max_iter = 15):
+def newton(theta, X, y, threshold = 0.001, max_iter = 15):
 
-    delta = 1000
-#     cost_history = []
-    iterations = 0
+    history = []
+    delta = np.Inf
     
-    while delta >= threshold and iterations <= max_iter:
+    while delta >= threshold and len(history) <= max_iter:
         args = (theta, X, y)
         theta -= np.linalg.pinv(hessian(*args)) @ partials(*args)
-#         c = cost(*args)
-#         cost_history.append(c)
-        delta = 10
-        iterations += 1
-        print(theta)
-        
+        l = likelihood(*args)
+        delta = l - history[-1] if len(history) >= 1 else np.Inf
+        history.append(l)
+
     return theta
 
 
-# In[250]:
+# In[273]:
 
 
 theta = np.zeros(X.shape[1])
