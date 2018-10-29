@@ -5,17 +5,17 @@
 # 
 # - Newton's model
 
-# In[233]:
+# In[314]:
 
 
 import numpy as np
 
-raw_X = np.loadtxt(path('data/logistic_x.txt')) # m x n
-raw_y = np.loadtxt(path('data/logistic_y.txt')) # 1 x m
+raw_X = np.loadtxt('data/logistic_x.txt') # m x n
+raw_y = np.loadtxt('data/logistic_y.txt') # 1 x m
 
 y = np.array([1 if v == 1 else 0 for v in raw_y])
 
-x_0 = np.ones(X.shape[0]).reshape(-1, 1) # (m,) => (m, 1)
+x_0 = np.ones(raw_X.shape[0]).reshape(-1, 1) # (m,) => (m, 1)
 X = np.concatenate((x_0, raw_X), axis=1) # m, n+1
 
 theta = np.zeros(X.shape[1])
@@ -39,7 +39,7 @@ print(theta)
 # \end{aligned}
 # $$
 
-# In[276]:
+# In[315]:
 
 
 def sigmoid(z):
@@ -75,7 +75,7 @@ def likelihood(theta, X, y):
     
 
 
-# In[277]:
+# In[316]:
 
 
 print(partials(theta, X, y))
@@ -83,7 +83,7 @@ print(hessian(theta, X, y))
 print(hypothesis(theta, X))
 
 
-# In[278]:
+# In[317]:
 
 
 def newton(theta, X, y, threshold = 0.001, max_iter = 15):
@@ -101,7 +101,7 @@ def newton(theta, X, y, threshold = 0.001, max_iter = 15):
     return theta
 
 
-# In[279]:
+# In[318]:
 
 
 theta = np.zeros(X.shape[1])
@@ -109,7 +109,7 @@ theta = newton(theta, X, y)
 print(theta)
 
 
-# In[305]:
+# In[319]:
 
 
 import matplotlib.pyplot as plt
