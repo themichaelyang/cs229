@@ -39,7 +39,7 @@ print(theta)
 # \end{aligned}
 # $$
 
-# In[259]:
+# In[276]:
 
 
 def sigmoid(z):
@@ -73,10 +73,9 @@ def likelihood(theta, X, y):
     
     return np.sum(class_1 + class_0)
     
-    
 
 
-# In[269]:
+# In[277]:
 
 
 print(partials(theta, X, y))
@@ -84,7 +83,7 @@ print(hessian(theta, X, y))
 print(hypothesis(theta, X))
 
 
-# In[272]:
+# In[278]:
 
 
 def newton(theta, X, y, threshold = 0.001, max_iter = 15):
@@ -95,17 +94,32 @@ def newton(theta, X, y, threshold = 0.001, max_iter = 15):
     while delta >= threshold and len(history) <= max_iter:
         args = (theta, X, y)
         theta -= np.linalg.pinv(hessian(*args)) @ partials(*args)
-        l = likelihood(*args)
-        delta = l - history[-1] if len(history) >= 1 else np.Inf
-        history.append(l)
+        like = likelihood(*args)
+        delta = like - history[-1] if len(history) >= 1 else np.Inf
+        history.append(like)
 
     return theta
 
 
-# In[273]:
+# In[279]:
 
 
 theta = np.zeros(X.shape[1])
 theta = newton(theta, X, y)
 print(theta)
+
+
+# In[305]:
+
+
+import matplotlib.pyplot as plt
+
+line_x1 = np.arange(-2, 10, 1)
+line_x2 = [(0.5 - theta[0] - (theta[1] * i)) / theta[2] for i in line_x1]
+
+fig, ax = plt.subplots()
+ax.scatter(X[:,1], X[:,2], s=5, c=y, cmap="coolwarm")
+ax.plot(line_x1, line_x2, linewidth=1, c='black')
+fig.suptitle('Decision Boundary Plot')
+plt.show()
 
