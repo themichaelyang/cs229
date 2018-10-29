@@ -5,13 +5,16 @@
 # 
 # - Newton's model
 
-# In[21]:
+# In[82]:
 
 
 import numpy as np
 
-X = np.loadtxt(path('data/logistic_x.txt')) # m x n
+raw_X = np.loadtxt(path('data/logistic_x.txt')) # m x n
 y = np.loadtxt(path('data/logistic_y.txt')) # 1 x m
+
+x_0 = np.ones(X.shape[0]).reshape(-1, 1) # (m,) => (m, 1)
+X = np.concatenate((x_0, raw_X), axis=1) # m, n+1
 
 theta = np.zeros(X.shape[1])
 
@@ -34,16 +37,16 @@ print(theta)
 # \end{aligned}
 # $$
 
-# In[26]:
+# In[83]:
 
 
 def sigmoid(z):
     '''vectorized sigmoid'''
-    return 1 / np.exp(z)
+    return 1 / (1 + np.exp(z))
 
 def hypothesis(theta, X):
     '''vectorized hypothesis, X = design matrix'''
-    return sigmoid(X @ theta)
+    return sigmoid(X @ theta) # result is length m vector
 
 def partials(theta, X, y):
     '''vectorized partial derivative'''
@@ -52,9 +55,27 @@ def partials(theta, X, y):
     # jth index of this vector = sum over all training: res * jth feature
     return residuals @ X # result is length n vector
 
+def hessian(theta, X, y):
+    prod = hypothesis(theta, X) * (1 - hypothesis(theta, X)) # m-vector
+    D = np.diag(prod) # construct diagonal matrix of sigmoid products
+    return X.T @ D @ X
 
-# In[27]:
+# def cost():
+
+
+# In[81]:
 
 
 print(partials(theta, X, y))
+print(hessian(theta, X, y))
+print(hypothesis(theta, X))
+
+
+# In[28]:
+
+
+def newton(theta, X, y):
+
+    
+        
 
