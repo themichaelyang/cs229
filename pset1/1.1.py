@@ -5,7 +5,7 @@
 # 
 # - Newton's model
 
-# In[314]:
+# In[322]:
 
 
 import numpy as np
@@ -24,6 +24,8 @@ print(X[:5])
 print(y)
 print(theta)
 
+get_ipython().run_line_magic('config', "InlineBackend.figure_format = 'retina'")
+
 
 # ## Newton's method
 # 
@@ -39,7 +41,7 @@ print(theta)
 # \end{aligned}
 # $$
 
-# In[315]:
+# In[323]:
 
 
 def sigmoid(z):
@@ -75,7 +77,7 @@ def likelihood(theta, X, y):
     
 
 
-# In[316]:
+# In[324]:
 
 
 print(partials(theta, X, y))
@@ -83,7 +85,7 @@ print(hessian(theta, X, y))
 print(hypothesis(theta, X))
 
 
-# In[317]:
+# In[325]:
 
 
 def newton(theta, X, y, threshold = 0.001, max_iter = 15):
@@ -98,18 +100,18 @@ def newton(theta, X, y, threshold = 0.001, max_iter = 15):
         delta = like - history[-1] if len(history) >= 1 else np.Inf
         history.append(like)
 
-    return theta
+    return theta, history
 
 
-# In[318]:
+# In[326]:
 
 
 theta = np.zeros(X.shape[1])
-theta = newton(theta, X, y)
+theta, history = newton(theta, X, y)
 print(theta)
 
 
-# In[319]:
+# In[327]:
 
 
 import matplotlib.pyplot as plt
