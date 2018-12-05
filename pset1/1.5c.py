@@ -72,8 +72,14 @@ def split_data(data):
 
 
 def sq_distance(f1_y, f2_y):
-    dist = (f1_y - f2_y)
-    return dist @ dist
+    sq_dist = (f1_y - f2_y).sum(axis=1) ** 2
+    return sq.sum()
+
+
+def sq_distance_rows(rows, fixed):
+    sq_dist_axis = lambda axis: sq_distance(axis, fixed)
+    sq_dists = np.apply_along_axis(sq_dist_axis, 0, rows)
+    return sq_dists
 
 
 def ker(t):
@@ -81,8 +87,12 @@ def ker(t):
 
 
 class Model:
-    def __init__(Y_train, wavelengths):
-        """ Y_train is passed in as smoothed data here """
+    def __init__(self, Y_train, wavelengths):
+        """
+            Y_train is passed in as smoothed data here
+            Y_train is a m by n matrix of many f() evaluated over
+            all wavelengths (w/o absorption)
+        """
         LYMAN_ALPHA = 1300
         LYMAN_FOREST_MAX = 1200
 
@@ -92,25 +102,61 @@ class Model:
 
         # Split data for f_left and f_right
         # These Y values are the outputs of f (Y_train: absorption free data)
-        self.Y_train_right = Y_train[:, self.right_start:]
-        self.Y_train_left = Y_train[:, :self.left_end]
+        self.Y_right_train = Y_train[:, self.right_start:]
+        self.Y_left_train = Y_train[:, :self.left_end]
+
+        # vectorized ker function
+        self.v_ker = np.vectorize(ker)
 
 
-    def predict(Y_right_pred):
-        """ Predict Y_left_pred from Y_right_pred (which has absorption) """
+    def predict(self, y_right_pred, k=3):
+        """
+            Predict y_left_pred from y_right_pred (which has absorption!)
+            y_right_pred: (n - right_start) length vector, one f_right()
+        """
+        # sq_dist_row = lambda row: sq_distance(row, y_right_pred)
+        # sq_dists = np.apply_along_axis(sq_dist_row, 0, self.Y_train_right)
+        sq_dists = sq_distance_rows(self.Y_train_right, y_right_pred)
+
+        # get sorted indicies
+        ordered_indicies = np.argsort(sq_dists)
+
+        knn_indicies = ordered_indicies[:k]
+        max_dist_index = ordered_indicies[-1]
+
+        # get knn distances via indicies
+        knn_dists = sq_dists[knn_indicies]
+        h = sq_dists[max_dist_index]
+
+        y_left_pred = deque()
         wavelengths_left = self.wavelengths[:self.left_end]
-        Y_left_pred = deque()
-
-        dists = sq_distance()
 
         for wv in wavelengths_left:
-            y_i_pred = self.predict_pt(wv, Y_right_pred)
-            Y_left_pred.append()
+            y_i_pred = self.predict_pt(wv, y_right_pred, knn_indicies, knn_dists, h)
+            y_left_pred.append(y_i_pred)
 
         return wavelengths_left, Y_left_pred
 
-    def predict_pt(x_pred, Y_right_pred):
-        pass
+
+    def predict_pt(self, x_pred, y_right_pred, knn_indicies, knn_dists, h):
+        # get all outputs of training f_left(x_pred) for knn
+        knn_left_i = knn_indicies - self.right_start
+        knn_y_left = self.Y_left_train[:, x_pred][knn_left_i]
+
+        numerator = (self.vker(knn_dists / h) @ knn_y_left)
+        denominator = self.vker(knn_dists / h).sum()
+
+        return numerator / denominator
+
+
+def load_or_smooth(filename, X, Y, tau):
+    Y_smooth = None
+    if not os.path.exists(filename):
+        Y_smooth = smooth(X, Y, tau)
+        pickle.dump(Y, open(filename, 'wb'))
+    else:
+        Y_smooth = pickle.load(open(filename, 'rb'))
+    return Y_smooth
 
 
 def main():
@@ -122,20 +168,21 @@ def main():
     data_train = np.genfromtxt(data_file, delimiter=",")
     data_test = np.genfromtxt(data_test_file, delimiter=",")
 
+    X_test, Y_test = split_data(data_train)
     wavelengths, intensities = split_data(data_train)
 
     Y_train = intensities
     X_train = prepend_ones(wavelengths)
+    X_test = prepend_ones(X_test)
+
+    assert((X_train == X_test).all())
 
     # Get smoothed Y of training set
-    Y_train_sm_file = 'Y_train_sm.pkl'
-    Y_train_sm = None
+    Y_train_sm = load_or_smooth('Y_train_sm.pkl', X_train, Y_train, TAU)
+    Y_test_sm = load_or_smooth('Y_test_sm.pkl', X_test, Y_test, TAU)
 
-    if not os.path.exists(Y_train_sm_file):
-        Y_train_sm = smooth(X_train, Y_train, TAU)
-        pickle.dump(Y_train_sm, open(Y_train_sm_file, 'wb'))
-    else:
-        Y_train_sm = pickle.load(open(Y_train_sm_file, 'rb'))
+    model = Model(Y_train_sm, wavelengths)
+    model.predict()
 
 
 if __name__ == "__main__":
