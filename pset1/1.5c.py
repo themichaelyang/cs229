@@ -83,6 +83,7 @@ def sq_distance(f1_y, f2_y):
 
 
 def sq_distance_rows(rows, fixed):
+    """ Get squared distance of all rows from fixed vector """
     sq_dist_axis = lambda axis: sq_distance(axis, fixed)
     sq_dists = np.apply_along_axis(sq_dist_axis, 1, rows)
     return sq_dists
@@ -113,14 +114,14 @@ class Model:
 
         # vectorized ker function
         self.v_ker = np.vectorize(ker)
+        self.wavelengths_left = self.wavelengths[:self.left_end]
+
 
     def predict(self, y_right_pred, k=3):
         """
-            Predict y_left_pred from y_right_pred (which has absorption!)
+            Predict y_left_pred from y_right_pred (which may have absorption!)
             y_right_pred: (n - right_start) length vector, one f_right()
         """
-        # sq_dist_row = lambda row: sq_distance(row, y_right_pred)
-        # sq_dists = np.apply_along_axis(sq_dist_row, 0, self.Y_right_train)
         sq_dists = sq_distance_rows(self.Y_right_train, y_right_pred)
 
         # get sorted indicies
@@ -134,13 +135,12 @@ class Model:
         h = sq_dists[max_dist_index]
 
         y_left_pred = deque()
-        wavelengths_left = self.wavelengths[:self.left_end]
 
-        for wv in wavelengths_left:
+        for wv in self.wavelengths_left:
             y_i_pred = self.predict_pt(wv, y_right_pred, knn_indicies, knn_dists, h)
             y_left_pred.append(y_i_pred)
 
-        return wavelengths_left, y_left_pred
+        return y_left_pred
 
 
     def predict_pt(self, x_pred, y_right_pred, knn_indicies, knn_dists, h):
@@ -162,6 +162,9 @@ class Model:
     def wavelength_to_index(self, wv):
         return np.where(self.wavelengths == wv)[0][0]
 
+    def get_wavelengths_left(self):
+        return self.wavelengths_left
+
 
 def load_or_smooth(filename, X, Y, tau):
     Y_smooth = None
@@ -173,28 +176,21 @@ def load_or_smooth(filename, X, Y, tau):
     return Y_smooth
 
 
-def graph_sm(x_orig, y_orig,
-          x_smooth, y_smooth):
-    """
-        Plot a single training set
-    """
-    fig, ax = plt.subplots()
+def func_graph_ith(x, Y_orig, Y_smooth, x_pred, Y_pred):
+    def graph_ith(i, ax):
+        # ax.scatter(x, Y_orig[i, :], c='black', s=1, alpha=0.2)
+        ax.plot(x, Y_smooth[i, :], c='black', lw=1)
+        ax.plot(x_pred, Y_pred[i, :], c='red', lw=1)
+        # ax.set_ylabel('Flux')
 
-    ax.scatter(x_orig, y_orig, c='black', s=3, alpha=0.2)
-    ax.plot(x_smooth, y_smooth, c='red', lw=1)
+    return lambda index, axes: graph_ith(index, axes)
 
 
-def graph(x_orig, y_orig,
-          x_smooth, y_smooth,
-          x_pred, y_pred):
-    """
-        Plot a single training set
-    """
-    fig, ax = plt.subplots()
-
-    # ax.scatter(x_orig, y_orig, c='black', s=3, alpha=0.2)
-    ax.plot(x_smooth, y_smooth, c='black', lw=1)
-    ax.plot(x_pred, y_pred, c='red', lw=1)
+def error(Y_expected, Y_actual):
+    total = 0
+    for i in range(Y_expected.shape[0]):
+        total += sq_distance(Y_expected[i, :], Y_actual[i, :])
+    return total / Y_expected.shape[0]
 
 
 def main():
@@ -219,26 +215,33 @@ def main():
     Y_train_sm = load_or_smooth('Y_train_sm.pkl', X_train, Y_train, TAU)
     Y_test_sm = load_or_smooth('Y_test_sm.pkl', X_test, Y_test, TAU)
 
-
     model = Model(Y_train_sm, wavelengths)
+    Y_train_left, Y_train_right = model.split_left_right(Y_train_sm)
     Y_test_left, Y_test_right = model.split_left_right(Y_test_sm)
 
-    ith = 5
-    x_i_test = wavelengths
-    y_i_test = Y_test[ith, :]
+    predict_row = lambda row: model.predict(row)
+    Y_train_pred = np.apply_along_axis(predict_row, 1, Y_train_right)
+    Y_test_pred = np.apply_along_axis(predict_row, 1, Y_test_right)
 
-    y_i_test_sm = Y_test_sm[ith, :]
+    # We can evaluate test and training set error since these have f_left
+    # without absorption (and we used f_right to predict)
+    print('Training set error: ' + str(error(Y_train_left, Y_train_pred)))
+    print('Test set error: ' + str(error(Y_test_left, Y_test_pred)))
 
-    y_i_test_right = Y_test_right[ith, :]
-    x_i_test_pred, y_i_test_pred = model.predict(y_i_test_right)
+    graph_ith = func_graph_ith(wavelengths, Y_test, Y_test_sm,
+                               model.get_wavelengths_left(), Y_test_pred)
 
-    graph_sm(wavelengths, Y_train[0, :],
-             wavelengths, Y_train_sm[0, :])
+    # fig = plt.figure()
+    # ax1 = fig.add_subplot(2, 1, 1)
+    # ax2 = fig.add_subplot(2, 1, 2)
+    # plt.style.use('seaborn')
 
-    graph(x_i_test, y_i_test,
-          x_i_test, y_i_test_sm,
-          x_i_test_pred, y_i_test_pred)
+    fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, figsize=(8, 6))
 
+    graph_ith(0, ax1)
+    graph_ith(5, ax2)
+    # print(plt.style.available)
+    # ax2.set_xlabel('Lambda')
     plt.show()
 
 
