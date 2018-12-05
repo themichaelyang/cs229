@@ -72,13 +72,13 @@ def split_data(data):
 
 
 def sq_distance(f1_y, f2_y):
-    sq_dist = (f1_y - f2_y).sum(axis=1) ** 2
-    return sq.sum()
+    sq_dist = (f1_y - f2_y).sum() ** 2
+    return sq_dist.sum()
 
 
 def sq_distance_rows(rows, fixed):
     sq_dist_axis = lambda axis: sq_distance(axis, fixed)
-    sq_dists = np.apply_along_axis(sq_dist_axis, 0, rows)
+    sq_dists = np.apply_along_axis(sq_dist_axis, 1, rows)
     return sq_dists
 
 
@@ -108,15 +108,14 @@ class Model:
         # vectorized ker function
         self.v_ker = np.vectorize(ker)
 
-
     def predict(self, y_right_pred, k=3):
         """
             Predict y_left_pred from y_right_pred (which has absorption!)
             y_right_pred: (n - right_start) length vector, one f_right()
         """
         # sq_dist_row = lambda row: sq_distance(row, y_right_pred)
-        # sq_dists = np.apply_along_axis(sq_dist_row, 0, self.Y_train_right)
-        sq_dists = sq_distance_rows(self.Y_train_right, y_right_pred)
+        # sq_dists = np.apply_along_axis(sq_dist_row, 0, self.Y_right_train)
+        sq_dists = sq_distance_rows(self.Y_right_train, y_right_pred)
 
         # get sorted indicies
         ordered_indicies = np.argsort(sq_dists)
@@ -135,18 +134,28 @@ class Model:
             y_i_pred = self.predict_pt(wv, y_right_pred, knn_indicies, knn_dists, h)
             y_left_pred.append(y_i_pred)
 
-        return wavelengths_left, Y_left_pred
+        return wavelengths_left, y_left_pred
 
 
     def predict_pt(self, x_pred, y_right_pred, knn_indicies, knn_dists, h):
         # get all outputs of training f_left(x_pred) for knn
         knn_left_i = knn_indicies - self.right_start
-        knn_y_left = self.Y_left_train[:, x_pred][knn_left_i]
+        knn_left_col = self.wavelength_to_index(x_pred)
+        knn_y_left = self.Y_left_train[:, knn_left_col][knn_left_i]
+        pass
 
-        numerator = (self.vker(knn_dists / h) @ knn_y_left)
-        denominator = self.vker(knn_dists / h).sum()
+        numerator = (self.v_ker(knn_dists / h) @ knn_y_left)
+        denominator = self.v_ker(knn_dists / h).sum()
 
         return numerator / denominator
+
+
+    def split_left_right(self, Y):
+        return Y[:, :self.left_end], Y[:, self.right_start:]
+
+
+    def wavelength_to_index(self, wv):
+        return np.where(self.wavelengths == wv)[0][0]
 
 
 def load_or_smooth(filename, X, Y, tau):
@@ -182,7 +191,13 @@ def main():
     Y_test_sm = load_or_smooth('Y_test_sm.pkl', X_test, Y_test, TAU)
 
     model = Model(Y_train_sm, wavelengths)
-    model.predict()
+    Y_test_left, Y_test_right = model.split_left_right(Y_test_sm)
+
+    y_i_test_right = Y_test_right[1, :]
+
+    print(model.predict(y_i_test_right))
+
+
 
 
 if __name__ == "__main__":
