@@ -139,10 +139,9 @@ class Model:
 
     def predict_pt(self, x_pred, y_right_pred, knn_indicies, knn_dists, h):
         # get all outputs of training f_left(x_pred) for knn
-        knn_left_i = knn_indicies - self.right_start
+        knn_left_i = knn_indicies
         knn_left_col = self.wavelength_to_index(x_pred)
-        knn_y_left = self.Y_left_train[:, knn_left_col][knn_left_i]
-        pass
+        knn_y_left = (self.Y_left_train[:, knn_left_col])[knn_left_i]
 
         numerator = (self.v_ker(knn_dists / h) @ knn_y_left)
         denominator = self.v_ker(knn_dists / h).sum()
@@ -162,10 +161,34 @@ def load_or_smooth(filename, X, Y, tau):
     Y_smooth = None
     if not os.path.exists(filename):
         Y_smooth = smooth(X, Y, tau)
-        pickle.dump(Y, open(filename, 'wb'))
+        pickle.dump(Y_smooth, open(filename, 'wb'))
     else:
         Y_smooth = pickle.load(open(filename, 'rb'))
     return Y_smooth
+
+
+def graph_sm(x_orig, y_orig,
+          x_smooth, y_smooth):
+    """
+        Plot a single training set
+    """
+    fig, ax = plt.subplots()
+
+    ax.scatter(x_orig, y_orig, c='black', s=3, alpha=0.2)
+    ax.plot(x_smooth, y_smooth, c='red', lw=1)
+
+
+def graph(x_orig, y_orig,
+          x_smooth, y_smooth,
+          x_pred, y_pred):
+    """
+        Plot a single training set
+    """
+    fig, ax = plt.subplots()
+
+    # ax.scatter(x_orig, y_orig, c='black', s=3, alpha=0.2)
+    ax.plot(x_smooth, y_smooth, c='black', lw=1)
+    ax.plot(x_pred, y_pred, c='red', lw=1)
 
 
 def main():
@@ -177,7 +200,7 @@ def main():
     data_train = np.genfromtxt(data_file, delimiter=",")
     data_test = np.genfromtxt(data_test_file, delimiter=",")
 
-    X_test, Y_test = split_data(data_train)
+    X_test, Y_test = split_data(data_test)
     wavelengths, intensities = split_data(data_train)
 
     Y_train = intensities
@@ -190,14 +213,27 @@ def main():
     Y_train_sm = load_or_smooth('Y_train_sm.pkl', X_train, Y_train, TAU)
     Y_test_sm = load_or_smooth('Y_test_sm.pkl', X_test, Y_test, TAU)
 
+
     model = Model(Y_train_sm, wavelengths)
     Y_test_left, Y_test_right = model.split_left_right(Y_test_sm)
 
-    y_i_test_right = Y_test_right[1, :]
+    ith = 0
+    x_i_test = wavelengths
+    y_i_test = Y_test[ith, :]
 
-    print(model.predict(y_i_test_right))
+    y_i_test_sm = Y_test_sm[ith, :]
 
+    y_i_test_right = Y_test_right[ith, :]
+    x_i_test_pred, y_i_test_pred = model.predict(y_i_test_right)
 
+    graph_sm(wavelengths, Y_train[0, :],
+             wavelengths, Y_train_sm[0, :])
+
+    graph(x_i_test, y_i_test,
+          x_i_test, y_i_test_sm,
+          x_i_test_pred, y_i_test_pred)
+
+    plt.show()
 
 
 if __name__ == "__main__":
