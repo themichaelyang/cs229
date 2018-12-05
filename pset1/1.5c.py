@@ -72,8 +72,14 @@ def split_data(data):
 
 
 def sq_distance(f1_y, f2_y):
-    sq_dist = (f1_y - f2_y).sum() ** 2
-    return sq_dist.sum()
+    # print(f1_y.shape, f2_y.shape)
+    sq_dist = (f1_y - f2_y).T @ (f1_y - f2_y)
+    # This was the problem: the distance function was
+    # actually squaring it after it summed the diffs
+    # Leaving this in for reference later.
+    # sq_dist = (f1_y - f2_y).sum() ** 2
+    # return sq_dist.sum()
+    return sq_dist
 
 
 def sq_distance_rows(rows, fixed):
@@ -217,7 +223,7 @@ def main():
     model = Model(Y_train_sm, wavelengths)
     Y_test_left, Y_test_right = model.split_left_right(Y_test_sm)
 
-    ith = 0
+    ith = 5
     x_i_test = wavelengths
     y_i_test = Y_test[ith, :]
 
